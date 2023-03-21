@@ -80,16 +80,17 @@ server <- function(input, output) {
       
         req(input$go) # plot only if input button is non-zero
         
-        #static_df <- isolate(df$data) 
+        alpha <- isolate(input$alpha)
+        static_data <- isolate(df$data)
         
         range <- NULL
         
         for (i in 100:2000) {
           
-          cit <- ci.tetra(alpha = input$alpha, df$data[1,1]*i/135, 
-                                               df$data[1,2]*i/135, 
-                                               df$data[2,1]*i/135, 
-                                               df$data[2,2]*i/135)
+          cit <- ci.tetra(alpha = alpha, static_data[1,1]*i/135, 
+                                         static_data[1,2]*i/135, 
+                                         static_data[2,1]*i/135, 
+                                         static_data[2,2]*i/135)
           range <- rbind(range, cit)
           
         }
@@ -100,7 +101,8 @@ server <- function(input, output) {
         ggplot(aes(x = x, y = Estimate)) +
         geom_line() + 
         geom_ribbon(aes(x, ymin = LL, ymax = UL), alpha = 0.4) +
-        scale_y_continuous(breaks = seq(-1, 1, .05))
+        scale_y_continuous(breaks = seq(-1, 1, .05)) +
+        labs(y = "Tetrachoric Correlation")
 
     })
     
