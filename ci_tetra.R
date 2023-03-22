@@ -73,9 +73,7 @@ server <- function(input, output) {
                       colnames = c("0", "1"),
                       rownames = c("0", "1"),
                       options = list(dom = "t"),
-                      editable = TRUE
-                      #editable = list(target = "column", disable = list(columns=0))
-                      )
+                      editable = TRUE)
     
       })
     
@@ -143,7 +141,7 @@ server <- function(input, output) {
         grid.arrange(g1, g2, nrow = 2)
         
 
-    }, width = 700, height = 1000)
+    }, width = 500, height = 800)
     
 
 }
