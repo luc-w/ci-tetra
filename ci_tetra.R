@@ -1,28 +1,53 @@
 library(shiny)
+library(shinydashboard)
+library(dashboardthemes)
 library(DT)
 library(tidyverse)
+library(statpsych)
+library(markdown)
+library(gridExtra)
 
 ui <- fluidPage(
 
     # Application title
-    titlePanel("CI Tetra"),
+    titlePanel("Confidence Intervals for Tetrachoric Correlations"),
 
     # Sidebar
     sidebarLayout(
         sidebarPanel(
-          
+        
+            h3("Number of participants"),
             DTOutput("my_datatable"),
             
-            numericInput("alpha", "Alpha level for 1-alpha confidence:", .05, min = .001, max = 1),
+            h3("Sample size"),
+            sliderInput("n", "", min = 50, max = 5000, step = 10, value = c(100,2000)),
+            
+            h3("Alpha level"),
+            numericInput("alpha", "", .05, min = .001, max = 1),
             verbatimTextOutput("value"),
-  
-            actionButton("go",label = "Run simulation")
+    
+            # horizontal line ----
+            tags$hr(),
+      
+            actionButton("go",label = "Run simulation"),
+            
+            # horizontal line ----
+            tags$hr(),
+    
+            # License
+            HTML("luc.watrin[at]uni-ulm.de <br>
+                 CC-By Attribution 4.0 International <br>
+                 Code available at https://github.com/luc-w/ci-tetra")
+    
   
         ),
 
         # Show plot
         mainPanel(
           
+           h4("How to use this app"),
+           includeMarkdown('main.md'),
+
            plotOutput("plot_results")
         
            )
@@ -44,7 +69,7 @@ server <- function(input, output) {
     # output the datatable based on the dataframe (and make it editable)
     output$my_datatable <- renderDT({
       
-        DT::datatable(df$data, 
+            datatable(df$data, 
                       colnames = c("0", "1"),
                       rownames = c("0", "1"),
                       options = list(dom = "t"),
@@ -73,38 +98,52 @@ server <- function(input, output) {
         df$data[i,j] <- k
         
     })
-
+    
     # render plot
     
     output$plot_results <- renderPlot({
       
         req(input$go) # plot only if input button is non-zero
         
-        alpha <- isolate(input$alpha)
         static_data <- isolate(df$data)
+        alpha <- isolate(input$alpha)
+        n_min <- isolate(input$n[1])
+        n_max <- isolate(input$n[2])
         
         range <- NULL
         
-        for (i in 100:2000) {
+        for (i in n_min:n_max) {
           
-          cit <- ci.tetra(alpha = alpha, static_data[1,1]*i/135, 
-                                         static_data[1,2]*i/135, 
-                                         static_data[2,1]*i/135, 
-                                         static_data[2,2]*i/135)
-          range <- rbind(range, cit)
+            cit <- ci.tetra(alpha = alpha, # number of participants with y = 0 and x = 0
+                                           static_data[1,1]*i/sum(static_data), 
+                                           # number of participants with y = 0 and x = 1
+                                           static_data[1,2]*i/sum(static_data), 
+                                           # number of participants with y = 1 and x = 0
+                                           static_data[2,1]*i/sum(static_data), 
+                                           # number of participants with y = 1 and x = 1
+                                           static_data[2,2]*i/sum(static_data))
+            range <- rbind(range, cit)
           
         }
         
-        range %>% 
-        data.frame() %>% 
-        mutate(x = (100:2000)/135) %>% 
-        ggplot(aes(x = x, y = Estimate)) +
-        geom_line() + 
-        geom_ribbon(aes(x, ymin = LL, ymax = UL), alpha = 0.4) +
-        scale_y_continuous(breaks = seq(-1, 1, .05)) +
-        labs(y = "Tetrachoric Correlation")
+        range <- range %>% 
+                 data.frame() %>% 
+                 mutate(x = (n_min:n_max)/sum(static_data),
+                        ci_width = UL-LL) 
+        
+        g1 <- ggplot(range, aes(x = x, y = Estimate)) +
+              geom_line() +
+              geom_ribbon(aes(x, ymin = LL, ymax = UL), alpha = 0.4) +
+              labs(y = "Tetrachoric Correlation")
+        
+        g2 <- ggplot(range, aes(x = x, y = ci_width)) +
+              geom_line() + 
+              labs(y = "Width of Confidence Inteval")
+                      
+        grid.arrange(g1, g2, nrow = 2)
+        
 
-    })
+    }, width = 700, height = 1000)
     
 
 }
